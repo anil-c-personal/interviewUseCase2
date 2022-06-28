@@ -1,3 +1,11 @@
 <template>
-    
+    <lightning-datatable
+                key-field="Id"
+                data={orderProducts}
+                columns={columns}
+                hide-checkbox-column="true"
+                sorted-by={sortedBy}
+                sorted-direction={sortedDirection}
+                onsort={onSort}
+            ></lightning-datatable>
 </template>
