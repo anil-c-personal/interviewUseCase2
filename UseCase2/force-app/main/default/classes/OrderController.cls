@@ -5,6 +5,16 @@ public without sharing class OrderController {
         return new OrderDataWrapper(orderId);
     }
     
+    @AuraEnabled
+    public static OrderDataWrapper updateOrderItems(Id orderId, OrderItem orderItemRecord){
+        try {
+            upsert orderItemRecord;
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+        return new OrderDataWrapper(orderId);
+    }
+
     public class OrderDataWrapper{
 
         public Id orderId;
@@ -16,7 +26,7 @@ public without sharing class OrderController {
         @AuraEnabled
         public Order orderRecord{
             get{
-                return [Select Id, ContractId, (SELECT Id, Product2Id, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItems) from Order where Id=:orderId];
+                return [Select Id, ContractId, (SELECT Id, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItems) from Order where Id=:orderId];
             }
             set{}
         }
