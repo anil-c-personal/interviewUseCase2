@@ -1,0 +1,12 @@
+<template>
+    <lightning-datatable
+                key-field="Id"
+                data={availablePricebookEntries}
+                columns={columns}
+                onrowaction={handleRowAction}
+                hide-checkbox-column="true"
+                sorted-by={sortedBy}
+                sorted-direction={sortedDirection}
+                onsort={onSort}
+            ></lightning-datatable>
+</template>
