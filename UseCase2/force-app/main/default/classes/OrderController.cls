@@ -5,6 +5,16 @@ public without sharing class OrderController {
         return new OrderDataWrapper(orderId);
     }
     
+    @AuraEnabled
+    public static OrderDataWrapper updateOrderItems(Id orderId, OrderItem orderItemRecord){
+        try {
+            upsert orderItemRecord;
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+        return new OrderDataWrapper(orderId);
+    }
+
     public class OrderDataWrapper{
 
         public Id orderId;
