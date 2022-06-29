@@ -3,6 +3,9 @@ import getAvailableProducts from '@salesforce/apex/OrderController.getAvailableP
 import updateOrderItems from '@salesforce/apex/OrderController.updateOrderItems';
 import LIST_PRICE from '@salesforce/schema/PricebookEntry.UnitPrice';
 
+import { publish, MessageContext } from 'lightning/messageService';
+import QUANTITY_UPDATED_CHANNEL from '@salesforce/messageChannel/Quantity_Updated__c';
+
 
 export default class AvailableProducts extends LightningElement {
     @api recordId;
@@ -14,10 +17,17 @@ export default class AvailableProducts extends LightningElement {
 
         }
     }
+
+    @wire(MessageContext)
+    messageContext;
+
+    isLoading = false;
+
     availablePricebookEntries;
+    
     columns = [
-        { label: 'Product Name', fieldName: 'productName', type: 'text' },
-        { label: 'List Price', fieldName: LIST_PRICE.fieldApiName, type: 'currency' },
+        { label: 'Product Name', fieldName: 'productName', type: 'text', sortable: true },
+        { label: 'List Price', fieldName: LIST_PRICE.fieldApiName, type: 'currency', sortable: true },
         {
             label: '',
             type: 'button-icon',
@@ -33,7 +43,7 @@ export default class AvailableProducts extends LightningElement {
           },
           { label: '', fieldName: 'quantity', type: 'number' ,initialWidth: 50,
           typeAttributes: {class : {fieldName : 'quantityClass'}},
-          cellAttributes: { alignment: 'center' }},
+          cellAttributes: { alignment: 'center' }, sortable: true},
         {
             label: '',
             type: 'button-icon',
@@ -73,6 +83,7 @@ export default class AvailableProducts extends LightningElement {
     }
 
     handleRowAction(event){
+        this.isLoading = true;
         const actionName = event.detail.action.title;
         const row = event.detail.row;
         switch (actionName) {
@@ -107,10 +118,15 @@ export default class AvailableProducts extends LightningElement {
         orderItem.Quantity = rowData.quantity;
         updateOrderItems({orderId: this.recordId, orderItemRecord: orderItem})
         .then((result)=>{
+            const payload = { 
+                orderId: this.recordId
+              };
+              publish(this.messageContext, QUANTITY_UPDATED_CHANNEL, payload);
             this.processData(result);
+            this.isLoading = false;
         })
         .catch((error)=>{
-
+            this.isLoading = false;
         })
         //this.availablePricebookEntries = entries;
     }
@@ -121,7 +137,32 @@ export default class AvailableProducts extends LightningElement {
         existingRowData.quantity = Number(existingRowData.quantity) - 1;
         existingRowData.removeButtonClass = existingRowData.quantity < 1 ? 'slds-hide' : 'slds-show';
         existingRowData.quantityClass = existingRowData.quantity < 1 ? 'slds-hide' : 'slds-show';
-        this.availablePricebookEntries = availableEntries;
+        let orderItem = {};
+        if(existingRowData.orderItemId){
+            orderItem.Id = existingRowData.orderItemId;
+        }
+        else{
+            orderItem.OrderId = this.recordId;
+            orderItem.Product2Id = existingRowData.Product2Id;
+            orderItem.PricebookEntryId = existingRowData.Id;
+            orderItem.UnitPrice = existingRowData.UnitPrice;
+        }
+        orderItem.Quantity = existingRowData.quantity;
+        updateOrderItems({orderId: this.recordId, orderItemRecord: orderItem})
+        .then((result)=>{
+            const payload = { 
+                orderId: this.recordId
+              };
+            publish(this.messageContext, QUANTITY_UPDATED_CHANNEL, payload);
+            this.processData(result);
+            this.isLoading = false;
+              
+        })
+        .catch((error)=>{
+            this.isLoading = false;
+        })
+        
+        //this.availablePricebookEntries = availableEntries;
     }
 
     onSort(event) {

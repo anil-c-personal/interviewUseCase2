@@ -6,9 +6,41 @@ public without sharing class OrderController {
     }
     
     @AuraEnabled
+    public static List<OrderItem> getOrderItems(Id orderId) {
+        return [SELECT Id, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItem where OrderId=:orderId];
+    }
+
+    @AuraEnabled
+    public static List<OrderItem> getOrderItems1(Id orderId) {
+        return [SELECT Id, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItem where OrderId=:orderId];
+    }
+
+    @AuraEnabled
+    public static void activateOrder(Id orderId) {
+        Order orderRecord = [SELECT Id, ContractId, (Select Id, Status__c, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItems) from Order where Id=:orderId];
+        orderRecord.Status = 'Activated';
+        Contract contractRecord = new Contract(Id=orderRecord.ContractId, Status = 'Activated');
+        List<OrderItem> orderItems = new List<OrderItem>();
+        for(OrderItem orderItem : orderRecord.OrderItems){
+            orderItem.Status__c = 'Activated';
+            orderItems.add(orderItem);
+        }
+        try{
+            update contractRecord;
+            update orderRecord;
+            update orderItems;
+        }catch(Exception e){
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
     public static OrderDataWrapper updateOrderItems(Id orderId, OrderItem orderItemRecord){
         try {
-            upsert orderItemRecord;
+            if(orderItemRecord.Quantity < 1 && String.isNotBlank(orderItemRecord.Id))
+                delete orderItemRecord;
+            else
+                upsert orderItemRecord;
         } catch (Exception e) {
             throw new AuraHandledException(e.getMessage());
         }
@@ -26,7 +58,7 @@ public without sharing class OrderController {
         @AuraEnabled
         public Order orderRecord{
             get{
-                return [Select Id, ContractId, (SELECT Id, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItems) from Order where Id=:orderId];
+                return [Select Id, Status, ContractId, (SELECT Id, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItems) from Order where Id=:orderId];
             }
             set{}
         }
