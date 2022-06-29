@@ -1,4 +1,13 @@
 <template>
+    <lightning-card title="Order Products">
+        <template if:true={isLoading}>
+            <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
+        </template>
+        <div slot="footer">
+            <lightning-button if:true={showActivateButton} variant="brand" label="Activate" name="Activate" onclick={activateOrder}></lightning-button>
+            <lightning-badge if:true={showActivatedMessage} label="Activated" icon-name="utility:check"></lightning-badge>
+        </div>
+        <div class="slds-p-around_small">
     <lightning-datatable
                 key-field="Id"
                 data={orderProducts}
@@ -8,4 +17,7 @@
                 sorted-direction={sortedDirection}
                 onsort={onSort}
             ></lightning-datatable>
+        </div>
+    </lightning-card>
+
 </template>
