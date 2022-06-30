@@ -29,9 +29,48 @@ public without sharing class OrderController {
             update contractRecord;
             update orderRecord;
             update orderItems;
+            makeCallout(orderId);
         }catch(Exception e){
             throw new AuraHandledException(e.getMessage());
         }
+    }
+
+    @future(callout=true)
+    public static void makeCallout(String orderId){
+        Order orderRecord = [SELECT Id, ContractId, Account.AccountNumber, OrderNumber, Type, Status, (Select Id, Status__c, Product2Id, Product2.Name, Product2.ProductCode, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItems) from Order where Id=:orderId];
+        Http http = new Http();
+        HttpRequest request = new HttpRequest();
+        request.setEndpoint('https://usecase2.requestcatcher.com/test');
+        request.setMethod('POST');
+        OrderConfirmationRequestWrapper reqWrapper = new OrderConfirmationRequestWrapper();
+        reqWrapper.accountNumber = String.isNotBlank(orderRecord.Account.AccountNumber) ? orderRecord.Account.AccountNumber : '';
+        reqWrapper.orderNumber = String.isNotBlank(orderRecord.OrderNumber) ? orderRecord.OrderNumber : '';
+        reqWrapper.type = String.isNotBlank(orderRecord.Type) ? orderRecord.Type : '';
+        reqWrapper.status = String.isNotBlank(orderRecord.Status) ? orderRecord.Status : '';
+        List<OrderConfirmationRequestWrapper.OrderProduct> orderProductList = new List<OrderConfirmationRequestWrapper.OrderProduct>();
+
+        for(OrderItem orderItem : orderRecord.OrderItems){
+            OrderConfirmationRequestWrapper.OrderProduct orderProduct = new OrderConfirmationRequestWrapper.OrderProduct();
+            orderProduct.name = String.isNotBlank(orderItem.Product2.Name) ? orderItem.Product2.Name : '';
+            orderProduct.code = String.isNotBlank(orderItem.Product2.ProductCode) ? orderItem.Product2.ProductCode : '';
+            orderProduct.unitPrice = orderItem.UnitPrice != null ? orderItem.UnitPrice : null;
+            orderProduct.quantity = orderItem.Quantity != null ? orderItem.Quantity : null;
+            orderProductList.add(orderProduct);
+        }
+
+        reqWrapper.orderProducts = orderProductList;
+
+        request.setBody(JSON.serialize(reqWrapper));
+
+        HttpResponse response = http.send(request);
+        if(response.getStatusCode()==200){
+            System.debug('callout successful');
+            System.debug(response.getBody());
+            //do further processing with response body
+        }else{
+            throw new AuraHandledException('Unsuccessful response');
+        }
+
     }
 
     @AuraEnabled
