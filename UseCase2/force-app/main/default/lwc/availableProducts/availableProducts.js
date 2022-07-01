@@ -9,17 +9,42 @@ import QUANTITY_UPDATED_CHANNEL from '@salesforce/messageChannel/Quantity_Update
 
 export default class AvailableProducts extends LightningElement {
     @api recordId;
-    @wire(getAvailableProducts, { orderId: '$recordId' })
+    @api pageSize = 5;
+    pageNumber = 1;
+
+    isPrev;
+    isNext;
+
+    totalPages;
+    totalPricebookEntries;
+    pbeRecordStart;
+    pbeRecordEnd;
+    /*@wire(getAvailableProducts, { orderId: this.recordId })
     orderDataWrapper({ error, data}) {
         if(data){
             this.processData(data);
         }else if(error){
 
         }
-    }
-
+    }*/
+    
     @wire(MessageContext)
     messageContext;
+
+    connectedCallback() {
+        this.getData();
+    }
+    
+    getData(){
+        getAvailableProducts({ orderId: this.recordId, pageSize: this.pageSize, pageNumber: this.pageNumber })
+        .then((result)=>{
+            this.processData(result);
+            this.isLoading = false;
+        })
+        .catch((error)=>{
+
+        })
+    }
 
     isLoading = false;
 
@@ -37,7 +62,8 @@ export default class AvailableProducts extends LightningElement {
                 title: 'Remove',
                 variant: 'container',
                 alternativeText: 'Remove',
-                class : {fieldName : 'removeButtonClass'}
+                class : {fieldName : 'removeButtonClass'},
+                disabled : {fieldName : 'disabled'}
             },
             
           },
@@ -52,14 +78,34 @@ export default class AvailableProducts extends LightningElement {
                 iconName: 'utility:add',
                 title: 'Add',
                 variant: 'container',
-                alternativeText: 'Add'
+                alternativeText: 'Add',
+                disabled : {fieldName : 'disabled'}
             }
           }
     ];
     sortedBy='quantity';
     sortedDirection = 'DESC';
 
+    handleNext(){
+        this.isLoading = true;
+        this.pageNumber = this.pageNumber+1;
+        this.getData();
+    }
+ 
+    
+    handlePrev(){
+        this.isLoading = true;
+        this.pageNumber = this.pageNumber-1;
+        this.getData();
+    }
+
     processData(data){
+        this.totalPricebookEntries = data.totalPricebookEntries;
+            this.pbeRecordStart = data.pbeRecordStart;
+            this.pbeRecordEnd = data.pbeRecordEnd;
+            this.totalPages = Math.ceil(data.totalPricebookEntries / this.pageSize);
+            this.isNext = (this.pageNumber == this.totalPages || this.totalPages == 0);
+                this.isPrev = (this.pageNumber == 1 || this.totalPricebookEntries < this.pageSize);
         this.availablePricebookEntries = data.pricebookEntries.map(obj=>{
             let quantity = 0;
             let alreadyExists = false;
@@ -77,7 +123,7 @@ export default class AvailableProducts extends LightningElement {
                 }
             }
             return {...obj, productName : obj.Product2.Name, quantityClass: quantityClass, removeButtonClass: removeButtonClass, 
-                quantity: quantity, alreadyExists: alreadyExists, orderItemId: orderItemId };
+                quantity: quantity, alreadyExists: alreadyExists, orderItemId: orderItemId, disabled: data.orderRecord.Status == 'Activated' ? true : false };
         });
         this.sortData('quantity','DESC');
     }
@@ -116,7 +162,7 @@ export default class AvailableProducts extends LightningElement {
             orderItem.UnitPrice = rowData.UnitPrice;
         }
         orderItem.Quantity = rowData.quantity;
-        updateOrderItems({orderId: this.recordId, orderItemRecord: orderItem})
+        updateOrderItems({orderId: this.recordId, orderItemRecord: orderItem, pageSize: this.pageSize, pageNumber: this.pageNumber})
         .then((result)=>{
             const payload = { 
                 orderId: this.recordId
@@ -148,7 +194,7 @@ export default class AvailableProducts extends LightningElement {
             orderItem.UnitPrice = existingRowData.UnitPrice;
         }
         orderItem.Quantity = existingRowData.quantity;
-        updateOrderItems({orderId: this.recordId, orderItemRecord: orderItem})
+        updateOrderItems({orderId: this.recordId, orderItemRecord: orderItem, pageSize: this.pageSize, pageNumber: this.pageNumber})
         .then((result)=>{
             const payload = { 
                 orderId: this.recordId
