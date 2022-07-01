@@ -12,4 +12,26 @@
                 sorted-direction={sortedDirection}
                 onsort={onSort}
             ></lightning-datatable>
+            <br/>
+            <div class="slds-align_absolute-center"> 
+                <div class="slds-p-right_xx-small">
+                         
+                    <lightning-button label="Prev"
+                    disabled={isPrev} onclick={handlePrev}
+                                        variant="brand"
+                                        icon-name="utility:back"
+                                        name="prev"></lightning-button>  
+                </div>
+                <span class="slds-badge slds-badge_lightest">
+                    {pbeRecordStart}-{pbeRecordEnd} of {totalPricebookEntries} | Page {pageNumber} of {totalPages}
+                </span>
+                <div class="slds-p-left_xx-small">
+                    <lightning-button label="Next"
+                    disabled={isNext} onclick={handleNext}
+                                        variant="brand"
+                                        icon-name="utility:forward"
+                                        icon-position="right"
+                                        name="next"></lightning-button>
+                </div>
+            </div>  
 </template>

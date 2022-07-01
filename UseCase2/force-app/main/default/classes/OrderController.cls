@@ -1,8 +1,8 @@
 public without sharing class OrderController {
     
-    @AuraEnabled(cacheable=true)
-    public static OrderDataWrapper getAvailableProducts(Id orderId) {
-        return new OrderDataWrapper(orderId);
+    @AuraEnabled
+    public static OrderDataWrapper getAvailableProducts(Id orderId, Integer pageSize, Integer pageNumber) {
+        return new OrderDataWrapper(orderId, pageSize, pageNumber);
     }
     
     @AuraEnabled
@@ -74,7 +74,7 @@ public without sharing class OrderController {
     }
 
     @AuraEnabled
-    public static OrderDataWrapper updateOrderItems(Id orderId, OrderItem orderItemRecord){
+    public static OrderDataWrapper updateOrderItems(Id orderId, OrderItem orderItemRecord, Integer pageSize, Integer pageNumber){
         try {
             if(orderItemRecord.Quantity < 1 && String.isNotBlank(orderItemRecord.Id))
                 delete orderItemRecord;
@@ -83,15 +83,17 @@ public without sharing class OrderController {
         } catch (Exception e) {
             throw new AuraHandledException(e.getMessage());
         }
-        return new OrderDataWrapper(orderId);
+        return new OrderDataWrapper(orderId, pageSize, pageNumber);
     }
 
     public class OrderDataWrapper{
 
         public Id orderId;
 
-        public OrderDataWrapper(Id orderId) {
+        public OrderDataWrapper(Id orderId, Integer pageSize, Integer pageNumber) {
             this.orderId = orderId;
+            this.pageSize = pageSize;
+            this.pageNumber = pageNumber;
         }
 
         @AuraEnabled
@@ -102,6 +104,12 @@ public without sharing class OrderController {
             set{}
         }
         
+        @AuraEnabled public Integer offset {
+            get{
+                return (pageNumber - 1) * pageSize;
+            }set;
+        }
+
         @AuraEnabled
         public Contract contractRecord{
             get{
@@ -113,9 +121,66 @@ public without sharing class OrderController {
         @AuraEnabled
         public List<PricebookEntry> pricebookEntries{
             get{
-                return [SELECT Id, Product2Id, Product2.Name, UnitPrice, IsActive, ProductCode, Pricebook2Id, Name FROM PricebookEntry where Pricebook2Id=:contractRecord.PriceBook2Id];
+                return [SELECT Id, Product2Id, Product2.Name, UnitPrice, IsActive, ProductCode, Pricebook2Id, Name FROM PricebookEntry where Pricebook2Id=:contractRecord.PriceBook2Id LIMIT :pageSize OFFSET :offset];
             }
             set{}
         }
+
+        @AuraEnabled
+        public List<OrderItem> orderItems{
+            get{
+                return [SELECT Id, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItem where OrderId=:orderId LIMIT :pageSize OFFSET :offset];
+            }
+            set{}
+        }
+
+        @AuraEnabled public Integer pageSize {get;set;}
+        @AuraEnabled public Integer pageNumber {get;set;}
+        @AuraEnabled public Integer totalOrderItems {
+            get{
+                return [Select COUNT() from OrderItem where OrderId =:orderId];
+            }
+            set;
+        }
+        @AuraEnabled public Integer totalPricebookEntries {
+            get{
+                return [Select COUNT() from PricebookEntry where Pricebook2Id=:contractRecord.PriceBook2Id];
+            }
+            set;
+        }
+
+        @AuraEnabled public Integer recordEnd {
+            get{
+                return pageSize * pageNumber;
+            }
+            set;
+        }
+
+        @AuraEnabled public Integer oliRecordStart {
+            get{
+                return offset + 1;
+            }
+            set;
+        }
+        @AuraEnabled public Integer oliRecordEnd {
+            get{
+                return totalOrderItems >= recordEnd ? recordEnd : totalOrderItems;
+            }
+            set;
+        }
+        @AuraEnabled public Integer pbeRecordStart {
+            get{
+                return offset + 1;
+            }
+            set;
+        }
+        @AuraEnabled public Integer pbeRecordEnd {
+            get{
+                return totalPricebookEntries >= recordEnd ? recordEnd : totalPricebookEntries;
+            }
+            set;
+        }
+
+    
     }
 }
