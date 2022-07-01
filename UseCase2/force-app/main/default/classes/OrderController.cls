@@ -6,16 +6,6 @@ public without sharing class OrderController {
     }
     
     @AuraEnabled
-    public static List<OrderItem> getOrderItems(Id orderId) {
-        return [SELECT Id, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItem where OrderId=:orderId];
-    }
-
-    @AuraEnabled
-    public static List<OrderItem> getOrderItems1(Id orderId) {
-        return [SELECT Id, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItem where OrderId=:orderId];
-    }
-
-    @AuraEnabled
     public static void activateOrder(Id orderId) {
         Order orderRecord = [SELECT Id, ContractId, (Select Id, Status__c, Product2Id, Product2.Name, Quantity, AvailableQuantity, PricebookEntryId, UnitPrice, ListPrice, TotalPrice, OrderId FROM OrderItems) from Order where Id=:orderId];
         orderRecord.Status = 'Activated';
